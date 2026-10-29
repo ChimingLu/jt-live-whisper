@@ -792,7 +792,10 @@ def _tts_worker_main():
 
 
 # ── 文字轉語音的安裝（只用標準函式庫：安裝程式在 GPU 伺服器、Mac 本機都用這一份，不必在 install.sh／install.ps1 各寫一遍）──
-TTS_G2PW_URL = "https://storage.googleapis.com/esun-ai/g2pW/G2PWModel-v2-onnx.zip"
+# g2pW 原本放在 storage.googleapis.com/esun-ai，那個 bucket 已經不在了（2026-10-29 回 NoSuchBucket，新安裝會失敗）；
+# 改用作者在 Hugging Face 的備份（同一個檔案，作者在說明裡列了 SHA256），固定版本並核對
+TTS_G2PW_URL = "https://huggingface.co/YC-Chen/g2pW/resolve/fb4784f7dce8466a53dd4f3552f5a4c5b657b90c/G2PWModel-v2-onnx.zip"
+TTS_G2PW_SHA256 = "699f3c1fd7fb0e2c2d49ed2486826fd5bff233fee7759350a91c3b49aedc4ed2"
 TTS_BERT = ("google-bert/bert-base-chinese", "8f23c25b06e129b6c986331a13d8d025a92cf0ea")
 TTS_MOE_URL = "https://raw.githubusercontent.com/g0v/moedict-data/a6dc997417507eb510fc29822bc514de2c92728c/dict-revised.json.xz"
 TTS_MOE_NOTICE = ("moe_words.tsv 由教育部《重編國語辭典修訂本》（g0v/moedict-data 整理）轉成「詞→讀音」對照，只做格式轉換。\n"
@@ -852,6 +855,7 @@ def _tts_download(url, dest, tries=6, stall=30):
 def _tts_fetch_data(d):
     """台灣念法要用的資源 → d：G2PWModel/（g2pW 模型，約 600 MB）、bert-base-chinese/（分詞器）、moe_words.tsv（教育部辭典對照）。
     已經有的不重下"""
+    import hashlib
     import lzma
     import zipfile
     os.makedirs(d, exist_ok=True)
@@ -859,6 +863,13 @@ def _tts_fetch_data(d):
     if not os.path.exists(os.path.join(g, "version")):
         print("  [文字轉語音] 下載 g2pW 模型（約 600 MB，判斷破音字的台灣念法）...", flush=True)
         z = _tts_download(TTS_G2PW_URL, os.path.join(d, "G2PWModel.zip"))
+        h = hashlib.sha256()
+        with open(z, "rb") as f:
+            for blk in iter(lambda: f.read(1 << 20), b""):
+                h.update(blk)
+        if h.hexdigest() != TTS_G2PW_SHA256:
+            os.remove(z)                              # 下載壞掉的不留：下次重跑從頭下載
+            raise RuntimeError(f"g2pW 模型檔核對失敗（SHA256 {h.hexdigest()}），請重新執行安裝")
         shutil.rmtree(g, ignore_errors=True)          # 上次解到一半的先清掉（壓縮檔最上層剛好就叫 G2PWModel）
         with zipfile.ZipFile(z) as zf:
             top = zf.namelist()[0].split("/")[0]

@@ -1,5 +1,13 @@
 # Changelog
 
+### 未發布
+
+**修正：新安裝文字轉語音時下載不到 g2pW 模型**
+- g2pW（判斷破音字的台灣念法）原本從 `storage.googleapis.com/esun-ai` 下載，那個位置已經不在了（回 `NoSuchBucket`），
+  GPU 伺服器 `--tts-setup` 與 Mac 本機朗讀的安裝都會卡在這一步
+- 改從 g2pW 作者在 Hugging Face 的備份（`YC-Chen/g2pW`）下載同一個檔案，固定版本，下載後核對 SHA256；不符就刪掉並請使用者重跑
+- 已經裝好的不受影響（有 `G2PWModel/version` 就不重下）
+
 ### v2.31.8 (2026-10-26)
 
 **安全性：WebUI 密碼改用加鹽的慢雜湊（GitHub 程式碼掃描 CodeQL #53）**
